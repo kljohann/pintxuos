@@ -16,8 +16,8 @@
 # bind the buttons on your tablet to `pintxuos press N` where N
 # is the number of the button counting from 1-8, starting
 # from the top. The button inside the ring has the number 0.
-# (This is purely a convention. It does make sense as the patch
-# mentioned above numbers the buttons in the same way.)
+# (This is purely a convention. The patch mentioned above
+# uses numbers from 0-7, but this is accounted for.)
 # Then `pintxuos` will handle dispatching key events to applications
 # and changing the hotkeys and images as you switch to different sets
 # of key bindings.
@@ -26,6 +26,13 @@
 # like 'M-S-F*' to execute pintxuos and then bind your tablet's buttons
 # to those keyboard shortcuts. The benefit is that you can use Xorg.conf
 # to map those buttons as those mappings will remain the same.
+
+# Getting it to work
+# ------------------
+# In my local version of the patch above I have changed every occurence
+# of `S_IWUSR` to `S_IWUSR | S_IWOTH` to allow writing to the control
+# files by every user. This will eventually be handled differently
+# by xsetwacom some day (for example by special a setuid binary).
 
 realpath () {
   # resolve symlinks to directories, return empty string on failure
@@ -47,9 +54,14 @@ info () {
   echo $@ 1>&2
 }
 
+which xdotool >/dev/null 2>&1 || err "xdotool not found"
+
 PROFILES=$HOME/.pintxuos
 [[ -d $PROFILES ]] || err "Profile directory does not exist"
 THIS=$PROFILES/this
+
+TABLETS=(/sys/class/input/input*/led(/N))
+info "$#TABLETS tablet(s) with led support found"
 
 # Changing states
 # ---------------
@@ -73,32 +85,49 @@ change_state () {
     $THIS/_init $0
   fi
 
-  return #FIXME: This code is still untested.
+  (( $#TABLETS > 0 )) || return
 
-  [[ -d /sys/class/input/input*/led ]] || return
+  # LED & OLED handling
+  # ===================
 
-  if [[ -r $THIS/_status ]]; then
-    # set status led
-    info "setting status led"
-    cat $THIS/_status > /sys/class/input/input*/led/status_led_select
+  if which intuos4led-img2raw >/dev/null 2>&1; then
+    for img in $THIS/[1-8].png(N); do
+      # Convert images to proper icon format.
+      raw=${img/%.png/.raw}
+
+      [[ -r $raw ]] && continue
+      info "converting ${img##*/} to raw grayscale"
+
+      intuos4led-img2raw $img
+    done
+    # Create a blank icon to display on buttons without image.
+    [[ -r $PROFILES/blank.raw ]] || intuos4led-img2raw --blank $PROFILES/blank.raw
+  else
+    info "intuos4led-img2raw not found, unable to convert images"
   fi
 
-  for img in $THIS/[0-8].png; do
-    # convert images to proper format
-    raw=${img/%.*/.gray}
 
-    [[ -r $raw ]] && continue
-    info "converting ${img##*/} to raw grayscale"
+  for tablet in $TABLETS; do
+    if [[ -r $THIS/_status ]]; then
+      # To set the status led on the tablet's ring, put a number between 1 and 3 in `_status`.
+      # If no such file is found, the status leds will be turned off.
+      info "setting status led"
+      cat $THIS/_status > $tablet/status_led_select
+    else
+      info "clearing status led"
+      echo "-1" > $tablet/status_led_select
+    fi
 
-    gm convert $img $raw
-  done
-
-  for bmp in $THIS/[1-8].gray; do
-    # send image to tablet
-    num=${${bmp##*/}%%.*}
-    info "displaying $bmp"
-
-    cat $bmp > /sys/class/input/input*/led/button${num}_rawimg
+    for (( i=1 ; i <= 8 ; i++ )); do
+      if [[ -r $THIS/$i.raw ]]; then
+        # Display icon if found.
+        info "displaying icon $i"
+        cat $THIS/$i.raw > $tablet/button$(($i-1))_rawimg
+      elif [[ -r $PROFILES/blank.raw ]]; then
+        # Display blank icon on buttons without an image.
+        cat $PROFILES/blank.raw > $tablet/button$(($i-1))_rawimg
+      fi
+    done
   done
 }
 
