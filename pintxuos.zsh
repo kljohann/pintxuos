@@ -50,8 +50,12 @@ err () {
   exit 1
 }
 
-info () {
+warn () {
   echo $@ 1>&2
+}
+
+info () {
+  [[ -n $DEBUG ]] && echo $@ 1>&2
 }
 
 which xdotool >/dev/null 2>&1 || err "xdotool not found"
@@ -107,7 +111,7 @@ change_state () {
     # Create a blank icon to display on buttons without image.
     [[ -r $PROFILES/blank.raw ]] || intuos4led-img2raw --blank $PROFILES/blank.raw 2>/dev/null
   else
-    info "intuos4led-img2raw not found, unable to convert images"
+    warn "intuos4led-img2raw not found, unable to convert images"
   fi
 
 
@@ -206,7 +210,7 @@ by_hotkey () {
       change_state $f
     fi
   else
-    info "$#matches matches found for $1 in state: $(realpath $THIS)"
+    warn "$#matches matches found for $1 in state: $(realpath $THIS)"
   fi
 }
 
