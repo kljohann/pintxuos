@@ -98,34 +98,43 @@ change_state () {
       [[ -r $raw ]] && continue
       info "converting ${img##*/} to raw grayscale"
 
-      intuos4led-img2raw $img
+      if [[ -e $PROFILES/_lefthanded ]]; then
+        intuos4led-img2raw --lefthanded $img 2>/dev/null
+      else
+        intuos4led-img2raw $img 2>/dev/null
+      fi
     done
     # Create a blank icon to display on buttons without image.
-    [[ -r $PROFILES/blank.raw ]] || intuos4led-img2raw --blank $PROFILES/blank.raw
+    [[ -r $PROFILES/blank.raw ]] || intuos4led-img2raw --blank $PROFILES/blank.raw 2>/dev/null
   else
     info "intuos4led-img2raw not found, unable to convert images"
   fi
 
 
   for tablet in $TABLETS; do
+    local status_led=-1
     if [[ -r $THIS/_status ]]; then
       # To set the status led on the tablet's ring, put a number between 1 and 3 in `_status`.
       # If no such file is found, the status leds will be turned off.
-      info "setting status led"
-      cat $THIS/_status > $tablet/status_led_select
-    else
-      info "clearing status led"
-      echo "-1" > $tablet/status_led_select
+      status_led=$(cat $THIS/_status)
+      [[ -e $PROFILES/_lefthanded ]] && status_led=$((3-status_led))
     fi
+    info "setting status led to $status_led"
+    echo $status_led > $tablet/status_led_select
 
     for (( i=1 ; i <= 8 ; i++ )); do
+      num=$((i-1))
+
+      # Assign icons in inverse order if lefthanded.
+      [[ -e $PROFILES/_lefthanded ]] && num=$((7-num))
+
       if [[ -r $THIS/$i.raw ]]; then
         # Display icon if found.
         info "displaying icon $i"
-        cat $THIS/$i.raw > $tablet/button$(($i-1))_rawimg
+        cat $THIS/$i.raw > $tablet/button${num}_rawimg
       elif [[ -r $PROFILES/blank.raw ]]; then
         # Display blank icon on buttons without an image.
-        cat $PROFILES/blank.raw > $tablet/button$(($i-1))_rawimg
+        cat $PROFILES/blank.raw > $tablet/button${num}_rawimg
       fi
     done
   done
