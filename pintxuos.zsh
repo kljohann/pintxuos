@@ -23,7 +23,7 @@
 # of key bindings.
 # One way of binding your buttons to pintxuos commands would be
 # to use your window manager to bind some dummy keyboard shortcuts
-# like 'M-S-F*' to execute pintxuos and then bind your tablet's buttons
+# like 'Win-F*' to execute pintxuos and then bind your tablet's buttons
 # to those keyboard shortcuts. The benefit is that you can use Xorg.conf
 # to map those buttons as those mappings will remain the same.
 
@@ -196,7 +196,7 @@ by_hotkey () {
       # Else if the filename contains a colon everything up to the first `:`
       # will be stripped and the rest sent as Keysyms to the focused window.
       info "sending to active window: ${=f#*:}"
-      xdotool key ${=f#*:} # ( `${=spec}` forces word splitting!)
+      xdotool getwindowfocus key --window "%1" --clearmodifiers ${=f#*:} # ( `${=spec}` forces word splitting!)
     fi
 
     if [[ -d $f ]]; then
