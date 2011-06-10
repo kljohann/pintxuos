@@ -31,8 +31,17 @@
 # ------------------
 # In my local version of the patch above I have changed every occurence
 # of `S_IWUSR` to `S_IWUSR | S_IWOTH` to allow writing to the control
-# files by every user. This will eventually be handled differently
-# by xsetwacom some day (for example by special a setuid binary).
+# files for every user. This will eventually be handled differently
+# by xsetwacom some day (for example by a special setuid binary).
+
+# Customization and Tips
+# --------------------
+# *  Create a file named `_lefthanded` in your profile directory when
+#    you're using a rotated setup.
+# *  Use `xdootool` to watch for foreground window changes then pass
+#    them to `pintxuos go /profile-name` to switch to `profile-name`
+#    (substitute the name of the program here).
+#
 
 realpath () {
   # resolve symlinks to directories, return empty string on failure
@@ -83,8 +92,8 @@ change_state () {
   fi
 
   if [[ -x $THIS/_init ]]; then
-    # call initialization script with path to this program
-    # passed as first argument.
+    # If an executable called `_init` is found in the profile directory
+    # it is called with the path to this program passed as its first argument.
     info "calling initialization script"
     $THIS/_init $0
   fi
@@ -199,6 +208,8 @@ by_hotkey () {
     if [[ $f =~ ':' ]]; then
       # Else if the filename contains a colon everything up to the first `:`
       # will be stripped and the rest sent as Keysyms to the focused window.
+      # A file called `3-save-file:Ctrl+S` for example will lead to `Ctrl+S`
+      # being sent to the focused window if button 3 is pressed.
       info "sending to active window: ${=f#*:}"
       xdotool getwindowfocus key --window "%1" --clearmodifiers ${=f#*:} # ( `${=spec}` forces word splitting!)
     fi
